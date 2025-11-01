@@ -1,0 +1,10 @@
+name: StackLimit
+version: 1.0
+main: gay.ren.stacklimit.StackLimitPlugin
+api-version: 1.21
+author: trannies
+description: Change max stack size of any item! (up to 99)
+commands:
+  stacklimit:
+    description: StackLimit admin commands
+    usage: /stacklimit reload
