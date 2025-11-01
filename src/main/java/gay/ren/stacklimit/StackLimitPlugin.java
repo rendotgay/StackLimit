@@ -22,9 +22,16 @@ import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.Location;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.Chest;
+import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.inventory.InventoryView;
+import org.bukkit.inventory.InventoryHolder;
 
 public class StackLimitPlugin extends JavaPlugin implements Listener {
 
@@ -143,5 +150,67 @@ public class StackLimitPlugin extends JavaPlugin implements Listener {
             for (String m : clipMessages) p.sendMessage(m);
         }
         notifiedOps.add(id);
+    }
+
+    private int safeGetMetaMax(ItemStack stack) {
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null) return -1;
+        try {
+            if (!meta.hasMaxStackSize()) return -1;
+            return meta.getMaxStackSize();
+        } catch (Throwable t) {
+            // defensive: some implementations may still throw unexpectedly
+            return -1;
+        }
+    }
+
+    @EventHandler
+    public void onInventoryOpen(InventoryOpenEvent event) {
+        try {
+            Player p = (Player) event.getPlayer();
+            InventoryView view = event.getView();
+
+            // inspect both the "top" inventory (container UI) and the raw event inventory
+            Inventory[] toInspect = new Inventory[] { view.getTopInventory(), event.getInventory() };
+
+            for (Inventory inv : toInspect) {
+                if (inv == null) continue;
+
+                InventoryHolder holder = inv.getHolder();
+                String holderClass = holder != null ? holder.getClass().getName() : "null";
+                String invType = inv.getType().name();
+                String worldName = p.getWorld() != null ? p.getWorld().getName() : "unknown";
+                String locStr = "unknown";
+
+                if (holder instanceof BlockState) {
+                    BlockState bs = (BlockState) holder;
+                    Location loc = bs.getLocation();
+                    if (loc != null) locStr = loc.getBlockX() + "," + loc.getBlockY() + "," + loc.getBlockZ() + " in " + loc.getWorld().getName();
+                }
+
+                for (int i = 0; i < inv.getSize(); i++) {
+                    ItemStack stack = inv.getItem(i);
+                    if (stack == null) continue;
+
+                    if (!itemMaxMap.containsKey(stack.getType())) continue;
+
+                    int beforeMetaMax = safeGetMetaMax(stack);
+                    int beforeAmount = stack.getAmount();
+
+                    // apply changes (this may set ItemMeta)
+                    applyMaxToStack(stack);
+                    inv.setItem(i, stack); // write back to inventory
+
+                    int afterMetaMax = safeGetMetaMax(stack);
+                    int afterAmount = stack.getAmount();
+
+                    boolean metaChanged = beforeMetaMax != afterMetaMax;
+                    boolean amountChanged = beforeAmount != afterAmount;
+                }
+            }
+        } catch (Throwable t) {
+            getLogger().severe("onInventoryOpen encountered an error: " + t);
+            t.printStackTrace();
+        }
     }
 }
