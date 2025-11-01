@@ -1,4 +1,4 @@
-### StackLimit
+# StackLimit
 Change max stack size of any item!
 
 Supports Minecraft 1.21
