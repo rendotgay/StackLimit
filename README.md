@@ -1,5 +1,5 @@
 # StackLimit
-Change max stack size of any item!
+A bukkit plugin to change max stack size of any item!
 
 Supports Minecraft 1.21
 
